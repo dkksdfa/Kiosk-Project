@@ -1,0 +1,285 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Zap, HelpCircle, Home, RefreshCw, Trophy, Play } from 'lucide-react';
+
+const MiniGameKiosk = () => {
+  const [view, setView] = useState('home'); // home, reaction, ox
+  const [gameResult, setGameResult] = useState(null);
+
+  // --- 반응속도 테스트 상태 ---
+  const [reactionState, setReactionState] = useState('idle'); // idle, waiting, ready, finished, early
+  const [startTime, setStartTime] = useState(0);
+  const [reactionTime, setReactionTime] = useState(0);
+  const timerRef = useRef(null);
+
+  // --- OX 퀴즈 상태 ---
+  const [oxQuestionIdx, setOxQuestionIdx] = useState(0);
+  const [oxScore, setOxScore] = useState(0);
+  const [oxFeedback, setOxFeedback] = useState(null); // correct, wrong
+
+  const oxQuestions = [
+    { q: "바나나는 원래 하얀색이다?", a: true, expl: "껍질은 노랗지만 속은 하얗습니다." },
+    { q: "타조는 날 수 있다?", a: false, expl: "타조는 날지 못하는 새입니다." },
+    { q: "낙지는 심장이 3개다?", a: true, expl: "낙지는 3개의 심장을 가지고 있습니다." },
+    { q: "남극에도 우편번호가 있다?", a: false, expl: "남극은 국가가 없어 우편번호가 없습니다." },
+    { q: "딸기는 과일이 아니라 채소다?", a: true, expl: "줄기 식물의 열매이므로 채소류입니다." },
+  ];
+
+  // --- 공통 핸들러 ---
+  const goHome = () => {
+    setView('home');
+    setGameResult(null);
+    resetReaction();
+    resetOx();
+  };
+
+  // --- 반응속도 게임 로직 ---
+  const resetReaction = () => {
+    setReactionState('idle');
+    setReactionTime(0);
+    clearTimeout(timerRef.current);
+  };
+
+  const startReaction = () => {
+    setReactionState('waiting');
+    const randomDelay = Math.floor(Math.random() * 3000) + 2000; // 2~5초 랜덤
+    timerRef.current = setTimeout(() => {
+      setReactionState('ready');
+      setStartTime(Date.now());
+    }, randomDelay);
+  };
+
+  const handleReactionClick = () => {
+    if (reactionState === 'waiting') {
+      clearTimeout(timerRef.current);
+      setReactionState('early');
+    } else if (reactionState === 'ready') {
+      const endTime = Date.now();
+      setReactionTime(endTime - startTime);
+      setReactionState('finished');
+    }
+  };
+
+  // --- OX 퀴즈 로직 ---
+  const resetOx = () => {
+    setOxQuestionIdx(0);
+    setOxScore(0);
+    setOxFeedback(null);
+  };
+
+  const handleOxAnswer = (answer) => {
+    const isCorrect = oxQuestions[oxQuestionIdx].a === answer;
+    if (isCorrect) setOxScore(s => s + 1);
+    
+    setOxFeedback(isCorrect ? 'correct' : 'wrong');
+
+    setTimeout(() => {
+      setOxFeedback(null);
+      if (oxQuestionIdx < oxQuestions.length - 1) {
+        setOxQuestionIdx(prev => prev + 1);
+      } else {
+        setView('ox_result');
+      }
+    }, 1000); // 1초 뒤 다음 문제
+  };
+
+  // --- 화면 컴포넌트 ---
+
+  const HomeScreen = () => (
+    <div className="flex flex-col h-full p-6 gap-6 animate-fade-in">
+      <header className="text-center py-8">
+        <h1 className="text-4xl font-extrabold text-slate-800 mb-2">미니게임 천국</h1>
+        <p className="text-slate-500 text-xl">원하는 게임을 터치하세요</p>
+      </header>
+
+      <div className="flex-1 grid grid-rows-2 gap-6">
+        <button 
+          onClick={() => { setView('reaction'); resetReaction(); }}
+          className="bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-all rounded-3xl p-8 flex flex-col items-center justify-center text-white shadow-xl relative overflow-hidden group"
+        >
+          <div className="absolute top-0 right-0 p-10 bg-white/10 rounded-full transform translate-x-1/2 -translate-y-1/2 group-hover:scale-150 transition-transform duration-500"></div>
+          <Zap size={80} className="mb-6 drop-shadow-md" />
+          <h2 className="text-4xl font-bold mb-2">반응속도 테스트</h2>
+          <p className="text-white/80 text-lg">번개처럼 빠르게 터치하세요!</p>
+        </button>
+
+        <button 
+          onClick={() => { setView('ox'); resetOx(); }}
+          className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 transition-all rounded-3xl p-8 flex flex-col items-center justify-center text-white shadow-xl relative overflow-hidden group"
+        >
+           <div className="absolute top-0 right-0 p-10 bg-white/10 rounded-full transform translate-x-1/2 -translate-y-1/2 group-hover:scale-150 transition-transform duration-500"></div>
+          <HelpCircle size={80} className="mb-6 drop-shadow-md" />
+          <h2 className="text-4xl font-bold mb-2">상식 OX 퀴즈</h2>
+          <p className="text-white/80 text-lg">알쏭달쏭 상식 대결!</p>
+        </button>
+      </div>
+      
+      <div className="text-center text-slate-400 py-4 font-medium">
+        제한시간 없이 즐기세요
+      </div>
+    </div>
+  );
+
+  const ReactionGame = () => {
+    let bgColor = 'bg-slate-800';
+    let message = '화면을 터치해서 시작하세요';
+    let icon = <Play size={64} />;
+
+    if (reactionState === 'waiting') {
+      bgColor = 'bg-rose-500';
+      message = '초록색이 되면 터치하세요!';
+      icon = <div className="animate-pulse text-6xl">...</div>;
+    } else if (reactionState === 'ready') {
+      bgColor = 'bg-green-500 cursor-pointer';
+      message = '지금 터치하세요!!!';
+      icon = <Zap size={80} className="animate-bounce" />;
+    } else if (reactionState === 'finished') {
+      bgColor = 'bg-blue-600';
+      message = `${reactionTime}ms`;
+      icon = <Trophy size={64} />;
+    } else if (reactionState === 'early') {
+      bgColor = 'bg-slate-700';
+      message = '너무 빨라요! 다시 시도하세요.';
+      icon = <RefreshCw size={64} />;
+    }
+
+    return (
+      <div 
+        className={`h-full flex flex-col items-center justify-center p-8 transition-colors duration-200 ${bgColor} text-white select-none touch-manipulation`}
+        onMouseDown={reactionState === 'idle' || reactionState === 'finished' || reactionState === 'early' ? undefined : handleReactionClick}
+        onTouchStart={reactionState === 'idle' || reactionState === 'finished' || reactionState === 'early' ? undefined : handleReactionClick}
+        onClick={reactionState === 'idle' ? startReaction : reactionState === 'finished' || reactionState === 'early' ? resetReaction : undefined}
+      >
+        <div className="mb-12 pointer-events-none">
+          {icon}
+        </div>
+        <h2 className="text-5xl font-bold text-center leading-tight mb-4 pointer-events-none">
+          {message}
+        </h2>
+        {reactionState === 'finished' && (
+           <p className="text-2xl opacity-80 mb-12">평균 사람 반응속도: 250ms</p>
+        )}
+
+        {(reactionState === 'finished' || reactionState === 'early') && (
+           <div className="flex gap-4 mt-8 w-full max-w-md">
+             <button 
+               onClick={(e) => { e.stopPropagation(); resetReaction(); startReaction(); }}
+               className="flex-1 bg-white/20 hover:bg-white/30 p-6 rounded-2xl text-xl font-bold flex items-center justify-center gap-2"
+             >
+               <RefreshCw /> 다시하기
+             </button>
+             <button 
+               onClick={(e) => { e.stopPropagation(); goHome(); }}
+               className="flex-1 bg-white/20 hover:bg-white/30 p-6 rounded-2xl text-xl font-bold flex items-center justify-center gap-2"
+             >
+               <Home /> 홈으로
+             </button>
+           </div>
+        )}
+        
+        {reactionState === 'idle' && (
+           <button onClick={goHome} className="absolute top-6 left-6 p-4 bg-white/10 rounded-full">
+             <Home />
+           </button>
+        )}
+      </div>
+    );
+  };
+
+  const OxGame = () => {
+    if (view === 'ox_result') {
+      return (
+        <div className="h-full bg-slate-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+          <Trophy size={80} className="text-yellow-500 mb-6" />
+          <h2 className="text-4xl font-bold text-slate-800 mb-2">퀴즈 종료!</h2>
+          <p className="text-2xl text-slate-500 mb-12">
+            총 <span className="text-blue-600 font-bold text-4xl">{oxQuestions.length}</span>문제 중 
+            <br/><span className="text-emerald-500 font-bold text-6xl mt-2 block">{oxScore}</span>개를 맞췄습니다!
+          </p>
+          <div className="flex gap-4 w-full max-w-md">
+            <button 
+              onClick={resetOx}
+              className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 p-6 rounded-2xl text-xl font-bold flex items-center justify-center gap-2"
+            >
+              <RefreshCw /> 다시하기
+            </button>
+            <button 
+              onClick={goHome}
+              className="flex-1 bg-slate-800 hover:bg-slate-900 text-white p-6 rounded-2xl text-xl font-bold flex items-center justify-center gap-2"
+            >
+              <Home /> 홈으로
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const currentQ = oxQuestions[oxQuestionIdx];
+
+    return (
+      <div className="h-full bg-slate-100 flex flex-col p-6 relative">
+        <header className="flex justify-between items-center mb-8">
+           <button onClick={goHome} className="p-4 bg-white rounded-xl shadow-sm text-slate-500">
+             <Home />
+           </button>
+           <div className="text-2xl font-bold text-slate-500">
+             {oxQuestionIdx + 1} / {oxQuestions.length}
+           </div>
+        </header>
+
+        {oxFeedback ? (
+          <div className={`flex-1 flex flex-col items-center justify-center rounded-3xl animate-bounce ${oxFeedback === 'correct' ? 'bg-emerald-500' : 'bg-rose-500'} text-white`}>
+            {oxFeedback === 'correct' ? (
+              <>
+                <div className="text-9xl mb-4">⭕</div>
+                <h2 className="text-4xl font-bold">정답입니다!</h2>
+              </>
+            ) : (
+              <>
+                <div className="text-9xl mb-4">❌</div>
+                <h2 className="text-4xl font-bold">틀렸습니다!</h2>
+              </>
+            )}
+            <p className="mt-6 text-xl text-white/90 px-8 text-center bg-black/10 py-4 rounded-xl">
+              {currentQ.expl}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 bg-white rounded-3xl shadow-lg flex items-center justify-center p-8 mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold text-center text-slate-800 leading-snug break-keep">
+                {currentQ.q}
+              </h2>
+            </div>
+
+            <div className="h-48 grid grid-cols-2 gap-6">
+              <button 
+                onClick={() => handleOxAnswer(true)}
+                className="bg-blue-500 hover:bg-blue-600 active:scale-95 transition-all rounded-3xl shadow-lg flex items-center justify-center"
+              >
+                <span className="text-8xl font-black text-white">O</span>
+              </button>
+              <button 
+                onClick={() => handleOxAnswer(false)}
+                className="bg-rose-500 hover:bg-rose-600 active:scale-95 transition-all rounded-3xl shadow-lg flex items-center justify-center"
+              >
+                <span className="text-8xl font-black text-white">X</span>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // --- 메인 렌더링 ---
+  return (
+    <div className="w-full h-screen bg-slate-50 font-sans overflow-hidden select-none">
+      {/* 화면 전환 컨테이너 */}
+      {view === 'home' && <HomeScreen />}
+      {view === 'reaction' && <ReactionGame />}
+      {(view === 'ox' || view === 'ox_result') && <OxGame />}
+    </div>
+  );
+};
+
+export default MiniGameKiosk;
