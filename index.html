@@ -3,340 +3,323 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>미니게임 키오스크</title>
+    <title>204호 디지털 방명록</title>
     
-    <!-- Tailwind CSS (스타일) -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- React & ReactDOM (코어 라이브러리) -->
+    <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     
-    <!-- Babel (JSX 변환용) -->
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+    <!-- 폰트 변경: Nanum Pen Script -> Dongle -->
+    <link href="https://fonts.googleapis.com/css2?family=Dongle:wght@300;400;700&display=swap" rel="stylesheet">
 
     <style>
-        /* 커스텀 애니메이션 및 스크롤바 숨김 */
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
-        
         body {
-            font-family: 'Noto Sans KR', sans-serif;
-            touch-action: manipulation; /* 더블탭 줌 방지 */
-            -webkit-user-select: none; /* 텍스트 선택 방지 */
+            font-family: 'Pretendard', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            overflow: hidden;
+            touch-action: none; /* 터치 드래그 시 화면 밀림 방지 */
             user-select: none;
         }
-
-        .animate-fade-in {
-            animation: fadeIn 0.5s ease-out;
+        .font-hand {
+            /* 폰트 스타일 변경 */
+            font-family: 'Dongle', sans-serif;
+            font-weight: 400;
         }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        /* 메모지 그림자 효과 */
+        .note-shadow {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 h-screen overflow-hidden">
-    <div id="root" class="h-full"></div>
+<body>
+    <div id="root" class="h-screen w-full"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- 아이콘 컴포넌트 (Lucide 아이콘을 SVG로 직접 구현) ---
-        const Zap = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-        );
-        const HelpCircle = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-        );
-        const Home = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-        );
-        const RefreshCw = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-        );
-        const Trophy = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17"></path><path d="M14 14.66V17"></path><path d="M12 2v10.5"></path><path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"></path></svg>
-        );
-        const Play = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-        );
+        // --- 아이콘 (SVG) ---
+        const EditIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+        const TrashIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
+        const XIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const PlusIcon = () => <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const CheckIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 
+        // --- 색상 팔레트 ---
+        const COLORS = [
+            { bg: 'bg-yellow-200', text: 'text-yellow-900', label: '노랑' },
+            { bg: 'bg-rose-200', text: 'text-rose-900', label: '분홍' },
+            { bg: 'bg-blue-200', text: 'text-blue-900', label: '파랑' },
+            { bg: 'bg-emerald-200', text: 'text-emerald-900', label: '초록' },
+            { bg: 'bg-purple-200', text: 'text-purple-900', label: '보라' },
+        ];
 
-        // --- 메인 앱 컴포넌트 ---
-        const MiniGameKiosk = () => {
-            const [view, setView] = useState('home'); // home, reaction, ox
-            const [gameResult, setGameResult] = useState(null);
+        // --- 메인 앱 ---
+        const App = () => {
+            const [notes, setNotes] = useState([]);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [inputText, setInputText] = useState("");
+            const [selectedColor, setSelectedColor] = useState(0);
+            
+            // 드래그 상태 관리
+            const [draggingId, setDraggingId] = useState(null);
+            const dragOffset = useRef({ x: 0, y: 0 });
 
-            // --- 반응속도 테스트 상태 ---
-            const [reactionState, setReactionState] = useState('idle'); // idle, waiting, ready, finished, early
-            const [startTime, setStartTime] = useState(0);
-            const [reactionTime, setReactionTime] = useState(0);
-            const timerRef = useRef(null);
-
-            // --- OX 퀴즈 상태 ---
-            const [oxQuestionIdx, setOxQuestionIdx] = useState(0);
-            const [oxScore, setOxScore] = useState(0);
-            const [oxFeedback, setOxFeedback] = useState(null); // correct, wrong
-
-            const oxQuestions = [
-                { q: "바나나는 원래 하얀색이다?", a: true, expl: "껍질은 노랗지만 속은 하얗습니다." },
-                { q: "타조는 날 수 있다?", a: false, expl: "타조는 날지 못하는 새입니다." },
-                { q: "낙지는 심장이 3개다?", a: true, expl: "낙지는 3개의 심장을 가지고 있습니다." },
-                { q: "남극에도 우편번호가 있다?", a: false, expl: "남극은 국가가 없어 우편번호가 없습니다." },
-                { q: "딸기는 과일이 아니라 채소다?", a: true, expl: "줄기 식물의 열매이므로 채소류입니다." },
-            ];
-
-            // --- 공통 핸들러 ---
-            const goHome = () => {
-                setView('home');
-                setGameResult(null);
-                resetReaction();
-                resetOx();
-            };
-
-            // --- 반응속도 게임 로직 ---
-            const resetReaction = () => {
-                setReactionState('idle');
-                setReactionTime(0);
-                clearTimeout(timerRef.current);
-            };
-
-            const startReaction = () => {
-                setReactionState('waiting');
-                const randomDelay = Math.floor(Math.random() * 3000) + 2000; // 2~5초 랜덤
-                timerRef.current = setTimeout(() => {
-                setReactionState('ready');
-                setStartTime(Date.now());
-                }, randomDelay);
-            };
-
-            const handleReactionClick = () => {
-                if (reactionState === 'waiting') {
-                clearTimeout(timerRef.current);
-                setReactionState('early');
-                } else if (reactionState === 'ready') {
-                const endTime = Date.now();
-                setReactionTime(endTime - startTime);
-                setReactionState('finished');
-                }
-            };
-
-            // --- OX 퀴즈 로직 ---
-            const resetOx = () => {
-                setOxQuestionIdx(0);
-                setOxScore(0);
-                setOxFeedback(null);
-            };
-
-            const handleOxAnswer = (answer) => {
-                const isCorrect = oxQuestions[oxQuestionIdx].a === answer;
-                if (isCorrect) setOxScore(s => s + 1);
-                
-                setOxFeedback(isCorrect ? 'correct' : 'wrong');
-
-                setTimeout(() => {
-                setOxFeedback(null);
-                if (oxQuestionIdx < oxQuestions.length - 1) {
-                    setOxQuestionIdx(prev => prev + 1);
+            // 1. 초기 로드: 로컬 스토리지에서 데이터 불러오기
+            useEffect(() => {
+                const savedNotes = localStorage.getItem('seminar-guestbook');
+                if (savedNotes) {
+                    try {
+                        setNotes(JSON.parse(savedNotes));
+                    } catch (e) {
+                        console.error("데이터 로드 실패", e);
+                    }
                 } else {
-                    setView('ox_result');
+                    // 초기 데이터 (예시)
+                    setNotes([
+                        { id: 1, text: "204호 세미나실 화이팅!", x: 100, y: 150, colorIdx: 0, rotation: -2 },
+                        { id: 2, text: "과제 마감 D-1... 살려줘", x: 300, y: 300, colorIdx: 1, rotation: 3 },
+                    ]);
                 }
-                }, 1000); // 1초 뒤 다음 문제
+            }, []);
+
+            // 2. 변경 시 저장: notes가 바뀔 때마다 로컬 스토리지 업데이트
+            useEffect(() => {
+                if (notes.length > 0) { // 빈 배열일 때 저장을 막으려면 조건 추가 가능
+                     localStorage.setItem('seminar-guestbook', JSON.stringify(notes));
+                }
+            }, [notes]);
+
+            // 메모 추가 핸들러
+            const addNote = () => {
+                if (!inputText.trim()) return;
+
+                // 랜덤 위치 (화면 중앙 근처)
+                const startX = window.innerWidth / 2 - 100 + (Math.random() * 100 - 50);
+                const startY = window.innerHeight / 2 - 100 + (Math.random() * 100 - 50);
+                const rotation = Math.random() * 10 - 5; // -5도 ~ +5도 회전
+
+                const newNote = {
+                    id: Date.now(),
+                    text: inputText,
+                    x: startX,
+                    y: startY,
+                    colorIdx: selectedColor,
+                    rotation: rotation
+                };
+
+                setNotes([...notes, newNote]);
+                setInputText("");
+                setIsModalOpen(false);
             };
 
-            // --- 화면 컴포넌트 ---
+            // 전체 삭제 핸들러
+            const clearNotes = () => {
+                if(confirm("모든 방명록을 지우시겠습니까?")) {
+                    setNotes([]);
+                    localStorage.removeItem('seminar-guestbook');
+                }
+            };
 
-            const HomeScreen = () => (
-                <div className="flex flex-col h-full p-6 gap-6 animate-fade-in max-w-md mx-auto">
-                <header className="text-center py-8">
-                    <h1 className="text-4xl font-extrabold text-slate-800 mb-2">미니게임 천국</h1>
-                    <p className="text-slate-500 text-xl">원하는 게임을 터치하세요</p>
-                </header>
+            // 메모 삭제 핸들러 (더블 클릭 또는 X버튼)
+            const deleteNote = (id, e) => {
+                e.stopPropagation(); // 드래그 이벤트 전파 방지
+                if(confirm("이 메모를 떼어내시겠습니까?")) {
+                    setNotes(notes.filter(n => n.id !== id));
+                }
+            };
 
-                <div className="flex-1 grid grid-rows-2 gap-6">
-                    <button 
-                    onClick={() => { setView('reaction'); resetReaction(); }}
-                    className="bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-all rounded-3xl p-8 flex flex-col items-center justify-center text-white shadow-xl relative overflow-hidden group"
-                    >
-                    <div className="absolute top-0 right-0 p-10 bg-white/10 rounded-full transform translate-x-1/2 -translate-y-1/2 group-hover:scale-150 transition-transform duration-500"></div>
-                    <Zap size={80} className="mb-6 drop-shadow-md" />
-                    <h2 className="text-4xl font-bold mb-2">반응속도 테스트</h2>
-                    <p className="text-white/80 text-lg">번개처럼 빠르게 터치하세요!</p>
-                    </button>
+            // --- 드래그 앤 드롭 로직 ---
+            const handlePointerDown = (e, id) => {
+                const note = notes.find(n => n.id === id);
+                if (!note) return;
 
-                    <button 
-                    onClick={() => { setView('ox'); resetOx(); }}
-                    className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 transition-all rounded-3xl p-8 flex flex-col items-center justify-center text-white shadow-xl relative overflow-hidden group"
-                    >
-                    <div className="absolute top-0 right-0 p-10 bg-white/10 rounded-full transform translate-x-1/2 -translate-y-1/2 group-hover:scale-150 transition-transform duration-500"></div>
-                    <HelpCircle size={80} className="mb-6 drop-shadow-md" />
-                    <h2 className="text-4xl font-bold mb-2">상식 OX 퀴즈</h2>
-                    <p className="text-white/80 text-lg">알쏭달쏭 상식 대결!</p>
-                    </button>
-                </div>
+                setDraggingId(id);
+                // 터치/마우스 좌표와 메모의 현재 위치 차이 계산
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                dragOffset.current = {
+                    x: clientX - note.x,
+                    y: clientY - note.y
+                };
+            };
+
+            const handlePointerMove = (e) => {
+                if (!draggingId) return;
+
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
                 
-                <div className="text-center text-slate-400 py-4 font-medium">
-                    제한시간 없이 즐기세요
-                </div>
-                </div>
-            );
+                if (!clientX || !clientY) return;
 
-            const ReactionGame = () => {
-                let bgColor = 'bg-slate-800';
-                let message = '화면을 터치해서 시작하세요';
-                let icon = <Play size={64} />;
-
-                if (reactionState === 'waiting') {
-                bgColor = 'bg-rose-500';
-                message = '초록색이 되면 터치하세요!';
-                icon = <div className="animate-pulse text-6xl">...</div>;
-                } else if (reactionState === 'ready') {
-                bgColor = 'bg-green-500 cursor-pointer';
-                message = '지금 터치하세요!!!';
-                icon = <Zap size={80} className="animate-bounce" />;
-                } else if (reactionState === 'finished') {
-                bgColor = 'bg-blue-600';
-                message = `${reactionTime}ms`;
-                icon = <Trophy size={64} />;
-                } else if (reactionState === 'early') {
-                bgColor = 'bg-slate-700';
-                message = '너무 빨라요! 다시 시도하세요.';
-                icon = <RefreshCw size={64} />;
-                }
-
-                return (
-                <div 
-                    className={`h-full flex flex-col items-center justify-center p-8 transition-colors duration-200 ${bgColor} text-white select-none touch-manipulation`}
-                    onMouseDown={reactionState === 'idle' || reactionState === 'finished' || reactionState === 'early' ? undefined : handleReactionClick}
-                    onTouchStart={reactionState === 'idle' || reactionState === 'finished' || reactionState === 'early' ? undefined : handleReactionClick}
-                    onClick={reactionState === 'idle' ? startReaction : reactionState === 'finished' || reactionState === 'early' ? resetReaction : undefined}
-                >
-                    <div className="mb-12 pointer-events-none">
-                    {icon}
-                    </div>
-                    <h2 className="text-5xl font-bold text-center leading-tight mb-4 pointer-events-none break-keep">
-                    {message}
-                    </h2>
-                    {reactionState === 'finished' && (
-                    <p className="text-2xl opacity-80 mb-12">평균 사람 반응속도: 250ms</p>
-                    )}
-
-                    {(reactionState === 'finished' || reactionState === 'early') && (
-                    <div className="flex gap-4 mt-8 w-full max-w-md">
-                        <button 
-                        onClick={(e) => { e.stopPropagation(); resetReaction(); startReaction(); }}
-                        className="flex-1 bg-white/20 hover:bg-white/30 p-6 rounded-2xl text-xl font-bold flex items-center justify-center gap-2"
-                        >
-                        <RefreshCw /> 다시하기
-                        </button>
-                        <button 
-                        onClick={(e) => { e.stopPropagation(); goHome(); }}
-                        className="flex-1 bg-white/20 hover:bg-white/30 p-6 rounded-2xl text-xl font-bold flex items-center justify-center gap-2"
-                        >
-                        <Home /> 홈으로
-                        </button>
-                    </div>
-                    )}
-                    
-                    {reactionState === 'idle' && (
-                    <button onClick={goHome} className="absolute top-6 left-6 p-4 bg-white/10 rounded-full">
-                        <Home />
-                    </button>
-                    )}
-                </div>
-                );
+                setNotes(notes.map(note => {
+                    if (note.id === draggingId) {
+                        return {
+                            ...note,
+                            x: clientX - dragOffset.current.x,
+                            y: clientY - dragOffset.current.y
+                        };
+                    }
+                    return note;
+                }));
             };
 
-            const OxGame = () => {
-                if (view === 'ox_result') {
-                return (
-                    <div className="h-full bg-slate-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in max-w-md mx-auto">
-                    <Trophy size={80} className="text-yellow-500 mb-6" />
-                    <h2 className="text-4xl font-bold text-slate-800 mb-2">퀴즈 종료!</h2>
-                    <p className="text-2xl text-slate-500 mb-12">
-                        총 <span className="text-blue-600 font-bold text-4xl">{oxQuestions.length}</span>문제 중 
-                        <br/><span className="text-emerald-500 font-bold text-6xl mt-2 block">{oxScore}</span>개를 맞췄습니다!
-                    </p>
-                    <div className="flex gap-4 w-full max-w-md">
-                        <button 
-                        onClick={resetOx}
-                        className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 p-6 rounded-2xl text-xl font-bold flex items-center justify-center gap-2"
-                        >
-                        <RefreshCw /> 다시하기
-                        </button>
-                        <button 
-                        onClick={goHome}
-                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white p-6 rounded-2xl text-xl font-bold flex items-center justify-center gap-2"
-                        >
-                        <Home /> 홈으로
-                        </button>
-                    </div>
-                    </div>
-                );
-                }
+            const handlePointerUp = () => {
+                setDraggingId(null);
+            };
 
-                const currentQ = oxQuestions[oxQuestionIdx];
-
-                return (
-                <div className="h-full bg-slate-100 flex flex-col p-6 relative max-w-md mx-auto">
-                    <header className="flex justify-between items-center mb-8">
-                    <button onClick={goHome} className="p-4 bg-white rounded-xl shadow-sm text-slate-500">
-                        <Home />
-                    </button>
-                    <div className="text-2xl font-bold text-slate-500">
-                        {oxQuestionIdx + 1} / {oxQuestions.length}
+            return (
+                <div 
+                    className="h-full w-full relative bg-slate-900 overflow-hidden"
+                    onMouseMove={handlePointerMove}
+                    onMouseUp={handlePointerUp}
+                    onTouchMove={handlePointerMove}
+                    onTouchEnd={handlePointerUp}
+                >
+                    {/* 배경 그리드 패턴 */}
+                    <div className="absolute inset-0 opacity-20 pointer-events-none" 
+                         style={{backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)', backgroundSize: '40px 40px'}}>
                     </div>
+
+                    {/* 상단 헤더 */}
+                    <header className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-10 pointer-events-none">
+                        <div>
+                            <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-lg">
+                                <span className="text-blue-500">204호</span> 방명록
+                            </h1>
+                            <p className="text-slate-400 mt-2 text-lg">자유롭게 터치하여 흔적을 남겨주세요.</p>
+                        </div>
+                        <div className="pointer-events-auto">
+                            <button 
+                                onClick={clearNotes}
+                                // 휴지통 버튼에 pointer-events-auto 추가
+                                className="bg-slate-800/80 hover:bg-rose-900/80 text-white p-3 rounded-xl backdrop-blur transition-colors border border-slate-700 pointer-events-auto"
+                            >
+                                <TrashIcon />
+                            </button>
+                        </div>
                     </header>
 
-                    {oxFeedback ? (
-                    <div className={`flex-1 flex flex-col items-center justify-center rounded-3xl animate-bounce ${oxFeedback === 'correct' ? 'bg-emerald-500' : 'bg-rose-500'} text-white`}>
-                        {oxFeedback === 'correct' ? (
-                        <>
-                            <div className="text-9xl mb-4">⭕</div>
-                            <h2 className="text-4xl font-bold">정답입니다!</h2>
-                        </>
-                        ) : (
-                        <>
-                            <div className="text-9xl mb-4">❌</div>
-                            <h2 className="text-4xl font-bold">틀렸습니다!</h2>
-                        </>
-                        )}
-                        <p className="mt-6 text-xl text-white/90 px-8 text-center bg-black/10 py-4 rounded-xl">
-                        {currentQ.expl}
-                        </p>
-                    </div>
-                    ) : (
-                    <>
-                        <div className="flex-1 bg-white rounded-3xl shadow-lg flex items-center justify-center p-8 mb-6">
-                        <h2 className="text-3xl md:text-4xl font-bold text-center text-slate-800 leading-snug break-keep">
-                            {currentQ.q}
-                        </h2>
-                        </div>
+                    {/* 메모 표시 영역 */}
+                    {notes.map(note => {
+                        const style = COLORS[note.colorIdx];
+                        const isDragging = draggingId === note.id;
 
-                        <div className="h-48 grid grid-cols-2 gap-6">
+                        return (
+                            <div
+                                key={note.id}
+                                onMouseDown={(e) => handlePointerDown(e, note.id)}
+                                onTouchStart={(e) => handlePointerDown(e, note.id)}
+                                className={`absolute p-6 w-64 min-h-[160px] flex flex-col justify-between ${style.bg} ${style.text} shadow-xl cursor-move select-none transition-shadow note-shadow`}
+                                style={{
+                                    left: note.x, 
+                                    top: note.y, 
+                                    transform: `rotate(${note.rotation}deg) scale(${isDragging ? 1.05 : 1})`,
+                                    zIndex: isDragging ? 50 : 10,
+                                    // 폰트 스타일 적용 변경
+                                    fontFamily: '"Dongle", sans-serif',
+                                    fontSize: '1.5rem', // 폰트 크기 조정
+                                    lineHeight: '1.2'
+                                }}
+                            >
+                                {/* 핀 (장식) */}
+                                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-red-500 shadow-md border border-red-700"></div>
+
+                                <p className="leading-snug break-words whitespace-pre-wrap font-hand">{note.text}</p>
+                                
+                                <div className="flex justify-end mt-4">
+                                    <button 
+                                        onClick={(e) => deleteNote(note.id, e)}
+                                        // X 버튼 드래그 이벤트 전파 방지 추가
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        onTouchStart={(e) => e.stopPropagation()}
+                                        className="opacity-50 hover:opacity-100 p-2 hover:bg-black/10 rounded-full transition-all"
+                                    >
+                                        <XIcon />
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {/* 하단 글쓰기 버튼 (플로팅) */}
+                    <div className="absolute bottom-8 right-8 z-20">
                         <button 
-                            onClick={() => handleOxAnswer(true)}
-                            className="bg-blue-500 hover:bg-blue-600 active:scale-95 transition-all rounded-3xl shadow-lg flex items-center justify-center"
+                            onClick={() => setIsModalOpen(true)}
+                            className="w-20 h-20 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-110 active:scale-95 animate-bounce"
                         >
-                            <span className="text-8xl font-black text-white">O</span>
+                            <PlusIcon />
                         </button>
-                        <button 
-                            onClick={() => handleOxAnswer(false)}
-                            className="bg-rose-500 hover:bg-rose-600 active:scale-95 transition-all rounded-3xl shadow-lg flex items-center justify-center"
-                        >
-                            <span className="text-8xl font-black text-white">X</span>
-                        </button>
+                    </div>
+
+                    {/* 글쓰기 모달 */}
+                    {isModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                            <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl transform transition-all scale-100">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-bold text-slate-800">새 메모 작성</h2>
+                                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                        <XIcon />
+                                    </button>
+                                </div>
+
+                                <textarea
+                                    value={inputText}
+                                    onChange={(e) => setInputText(e.target.value)}
+                                    placeholder="여기에 내용을 입력하세요..."
+                                    className={`w-full h-40 p-6 text-2xl font-hand border-none rounded-xl mb-6 resize-none focus:ring-2 focus:ring-blue-500 outline-none ${COLORS[selectedColor].bg} ${COLORS[selectedColor].text} placeholder-opacity-50`}
+                                    autoFocus
+                                    // 모달 내 textarea 폰트 크기 조정
+                                    style={{ fontSize: '1.8rem' }}
+                                />
+
+                                {/* 색상 선택기 */}
+                                <div className="flex gap-3 mb-8 justify-center">
+                                    {COLORS.map((color, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setSelectedColor(idx)}
+                                            className={`w-10 h-10 rounded-full border-2 transition-transform ${color.bg} ${selectedColor === idx ? 'border-blue-500 scale-125' : 'border-transparent'}`}
+                                            aria-label={color.label}
+                                        />
+                                    ))}
+                                </div>
+
+                                <button 
+                                    onClick={addNote}
+                                    disabled={!inputText.trim()}
+                                    className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-slate-800 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    <CheckIcon />
+                                    게시하기
+                                </button>
+                            </div>
                         </div>
-                    </>
                     )}
                 </div>
-                );
-            };
-
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(<MiniGameKiosk />);
+            );
         };
+
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+            const root = ReactDOM.createRoot(rootElement);
+            root.render(<App />);
+        } else {
+            console.error("Root element not found");
+        }
     </script>
 </body>
 </html>
